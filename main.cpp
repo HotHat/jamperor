@@ -7,6 +7,8 @@
 #include <cstring>
 #include <iostream>
 
+#include "logger.h"
+
 
 void pa(const char *arr, int count) {
     for(int i = 0; i < count; ++i) {
@@ -17,8 +19,9 @@ void pa(const char *arr, int count) {
 }
 
 int main() {
+    Logger logger;
     const int max_events = 10;
-    const int buf_len = 10;
+    const int buf_len = 2048;
 
     socklen_t address_len = sizeof(sockaddr_in);
 
@@ -82,7 +85,9 @@ int main() {
                     std::cout << "epoll in happened! event: " << event << std::endl;
                     size_t n = read(current_fd, buf, buf_len);
                     std::cout << "size of read: " << n << std::endl;
-                    pa(buf, n);
+//                    pa(buf, n);
+                    std::string message(buf, n);
+                    logger.error(message);
                     write(current_fd, buf, n);
 
                 } else if (event & EPOLLOUT) {
