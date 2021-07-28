@@ -16,7 +16,7 @@ find_package(Boost REQUIRED COMPONENTS
 )
 
 
-add_executable(jamperor main.cpp logger.h)
+add_executable(jamperor main.cpp logger.h clients/redis_client.cpp)
 target_link_libraries(jamperor
         ${Boost_LOG_SETUP_LIBRARY}
         ${Boost_LOG_LIBRARY}
@@ -35,4 +35,6 @@ target_link_libraries(tester
         Boost::thread
         )
 
+set(CLIENTS_DIR ${PROJECT_SOURCE_DIR}/clients)
+add_subdirectory(CLIENTS_DIR)
 
