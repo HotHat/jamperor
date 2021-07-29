@@ -21,21 +21,36 @@ BOOST_AUTO_TEST_CASE(test_simple_string)
     std::cout << bulk_string.ToString() << std::endl;
 
     std::cout << RespBulkString::Empty().ToString() << std::endl;
-    std::cout << RespBulkString::Nil().ToString() << std::endl;
+    std::cout << RespBulkString::Null().ToString() << std::endl;
 
     RespInteger integer("123456");
     RespInteger integer2(123456);
     std::cout << integer.ToString() << std::endl;
     std::cout << integer2.ToString() << std::endl;
 
+//    std::shared_ptr<RespArray> resp_array_inner(new RespArray());
+//    resp_array_inner->Add(simple_string);
+//    resp_array_inner->Add(simple_string2);
 
-    std::cout << "array test" << std::endl;
-    RespArray resp_array;
+//    std::cout << "array test" << std::endl;
+//    RespArray resp_array;
 
-    resp_array.Add(simple_string);
-    resp_array.Add(simple_string2);
+//    resp_array.Add(simple_string);
+//    resp_array.Add(simple_string2);
+//    resp_array.Add(resp_array_inner);
 
-    std::cout << resp_array.ToString() << std::endl;
+//    std::cout << resp_array.ToString() << std::endl;
+//    std::cout << RespArray::Null().ToString() << std::endl;
 
+
+    BOOST_CHECK(true);
+}
+
+BOOST_AUTO_TEST_CASE(test_parse_string)
+{
+    auto opt = redis_resp_parse(std::string("+OK\r\n"));
+    if (opt) {
+        std::cout << opt.value()->ToString() << std::endl;
+    }
     BOOST_CHECK(true);
 }
