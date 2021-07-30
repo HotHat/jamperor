@@ -14,14 +14,14 @@ BOOST_AUTO_TEST_CASE(test_simple_string)
     std::shared_ptr<RespSimpleString> simple_string(new RespSimpleString("OK"));
     std::shared_ptr<RespSimpleString> simple_string2(new RespSimpleString("Operation against a key holding the wrong kind of value"));
 
-    std::cout << simple_string->ToString() << std::endl;
-    std::cout << simple_string2->Error("WRONGTYPE") << std::endl;
+   // std::cout << simple_string->ToString() << std::endl;
+   // std::cout << simple_string2->Error("WRONGTYPE") << std::endl;
 
     RespBulkString bulk_string("foobar");
     std::cout << bulk_string.ToString() << std::endl;
 
-    std::cout << RespBulkString::Empty().ToString() << std::endl;
-    std::cout << RespBulkString::Null().ToString() << std::endl;
+    // std::cout << RespBulkString::Empty().ToString() << std::endl;
+    // std::cout << RespBulkString::Null().ToString() << std::endl;
 
     RespInteger integer("123456");
     RespInteger integer2(123456);
@@ -48,9 +48,26 @@ BOOST_AUTO_TEST_CASE(test_simple_string)
 
 BOOST_AUTO_TEST_CASE(test_parse_string)
 {
-    auto opt = redis_resp_parse(std::string("+OK\r\n"));
+    // auto opt = redis_resp_parse(std::string("+OK\r\n-ERR unknown command 'foobar'\r\n:1000\r\n$"));
+    // if (opt) {
+    //     std::cout << opt.value()->ToString() << std::endl;
+    // }
+
+
+    auto opt = redis_resp_parse(std::string("+This is simple string\r\n-Error Message\r\n:12345\r\n$-1\r\n$5\r\n12345\r\n"));
     if (opt) {
         std::cout << opt.value()->ToString() << std::endl;
     }
+
+    // auto opt1 = redis_resp_parse(std::string("-ERR unknown command 'foobar'\r\n"));
+    // if (opt) {
+    //     std::cout << opt1.value()->ToString() << std::endl;
+    // }
+    //
+    // auto opt2 = redis_resp_parse(std::string(":1000\r\n"));
+    // if (opt) {
+    //     std::cout << opt2.value()->ToString() << std::endl;
+    // }
+
     BOOST_CHECK(true);
 }

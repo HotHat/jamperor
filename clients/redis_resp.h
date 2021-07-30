@@ -10,6 +10,7 @@
 #include <memory>
 #include <stack>
 #include <boost/optional.hpp>
+#include <ctype.h>
 
 
 class RedisRespBase {
@@ -68,20 +69,26 @@ public:
         return std::string(ss.str());
     }
 
-    static RespBulkString Empty() {
-        return RespBulkString(std::string(""));
+    static RespBulkString *Empty() {
+        return new RespBulkString(std::string(""));
     }
 
-    static RespBulkString Null() {
-        auto rb = RespBulkString("");
-        rb.SetNull();
+    static RespBulkString *Null() {
+        auto rb = new RespBulkString("");
+        rb->SetNull(true);
         return rb;
     }
 
-private:
-    void SetNull() {
-        is_null_ = true;
+    bool IsNull() {
+        return is_null_;
     }
+
+    void SetNull(bool val) {
+        is_null_ = val;
+    }
+
+private:
+
 
     bool is_null_;
     std::string bulk_string_;
@@ -141,12 +148,22 @@ public:
         return rb;
     }
 
+    bool IsNull() const {
+        return is_null_;
+    }
 
-private:
     void SetNull() {
         is_null_ = true;
     }
 
+    ~RespArray() {
+        for (auto s : arr_) {
+            delete s;
+        }
+    }
+
+
+private:
     bool is_null_;
     std::vector<RedisRespBase *> arr_;
 
@@ -166,19 +183,20 @@ boost::optional<std::shared_ptr<RespArray>> redis_resp_parse(std::string raw) {
     // array 5
     // \r X6
     int state = 0;
+    int32_t bulk_string_count = 0;
     std::stringstream ss;
     auto opt_none = boost::optional<std::shared_ptr<RespArray>>(boost::none);
 
 
     for ( std::string::iterator it = raw.begin(); it != raw.end(); ++it) {
-        std::cout << *it;
+        // std::cout << *it;
         if (state == 0) {
             switch (*it) {
                 case '+': state = 1; break;
                 case '-': state = 2; break;
                 case ':': state = 3; break;
-                case '$': state = 4; break;
-                case '*': state = 5;  break;
+                case '$': state = 4; bulk_string_count = 0; break;
+                case '*': state = 6;  break;
                 default: return opt_none;
             }
         } else if (state == 1 || state == 2 || state == 3) {
@@ -196,24 +214,97 @@ boost::optional<std::shared_ptr<RespArray>> redis_resp_parse(std::string raw) {
         } else if (state == 16 || state == 26 || state == 36) {
             if (*it == '\n') {
                 auto top = stack.top();
+                auto buf = ss.str();
+                ss.str(std::string());
                 if (state == 16) {
-                    auto str = new RespSimpleString(ss.str());
+                    auto str = new RespSimpleString(buf);
                     top->Add(str);
                 } else if (state == 26) {
-                    auto str = new RespSimpleString(ss.str());
+                    auto str = new RespSimpleString(buf);
                     str->SetError(true);
                     top->Add(str);
                 } else {
-                    auto str = new RespInteger(ss.str());
+                    auto str = new RespInteger(buf);
                     top->Add(str);
                 }
+
+                // reset to start
+                state = 0;
+
+            } else {
+                return opt_none;
+            }
+        } else if (state == 4) {
+            // number + \r\n
+            if (*it == '-') {
+                ss << *it;
+                state = 42;
+            } else if (std::isdigit(*it)) {
+                ss << *it;
+            } else if (*it == '\r') {
+                state = 46;
+            } else {
+                return opt_none;
+            }
+        } else if (state == 42) {
+            if (*it == '1') {
+                ss << '1';
+                state = 43;
+            } else {
+                return opt_none;
+            }
+        }  else if (state == 43) {
+            if (*it == '\r') {
+                state = 46;
+            } else {
+                return opt_none;
+            }
+
+        } else if (state == 46) {
+            if (*it == '\n') {
+                auto buf = ss.str();
+                ss.str(std::string());
+                bulk_string_count = std::stoi(buf);
+                if (bulk_string_count == -1) {
+                    auto top = stack.top();
+                    auto str = RespBulkString::Null();
+                    top->Add(str);
+                    // reset to start
+                    state = 0;
+                } else {
+                    // reset to start
+                    state = 50;
+                }
+
+            } else {
+                return opt_none;
+            }
+        } else if (state == 50) {
+            // std::cout << "ss:count:" << ss.tellp() << std::endl;
+            if (ss.tellp() < bulk_string_count) {
+                ss << *it;
+            } else {
+                if (*it == '\r') {
+                    state = 56;
+                } else {
+                    return opt_none;
+                }
+            }
+        } else if (state == 56) {
+            if (*it == '\n') {
+                auto buf = ss.str();
+                ss.str(std::string());
+                auto top = stack.top();
+                auto str = new RespBulkString(buf);
+                top->Add(str);
+                state = 0;
             } else {
                 return opt_none;
             }
         }
     }
 
-    if(state == 0) { return opt_none; }
+    if(state != 0) { return opt_none; }
 
     auto resp = std::shared_ptr<RespArray>(resp_array);
     return boost::make_optional(resp);
