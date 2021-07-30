@@ -13,12 +13,12 @@
 #include <ctype.h>
 
 
-class RedisRespBase {
+class RespBase {
 public:
     virtual std::string ToString() { return std::string(); };
 };
 
-class RespSimpleString : public RedisRespBase{
+class RespSimpleString : public RespBase{
 public:
     RespSimpleString() = delete;
 
@@ -51,7 +51,7 @@ private:
     std::string simple_string_;
 };
 
-class RespBulkString : public RedisRespBase{
+class RespBulkString : public RespBase{
 public:
     RespBulkString() = delete;
 
@@ -94,7 +94,7 @@ private:
     std::string bulk_string_;
 };
 
-class RespInteger : public RedisRespBase{
+class RespInteger : public RespBase{
 public:
     RespInteger() = delete;
 
@@ -119,13 +119,13 @@ private:
     std::string int_string_;
 };
 
-class RespArray : public RedisRespBase {
+class RespArray : public RespBase {
 public:
     RespArray() : is_null_(false) {
-        arr_ = std::vector<RedisRespBase *>();
+        arr_ = std::vector<RespBase *>();
     }
 
-    void Add(RedisRespBase *resp) {
+    void Add(RespBase *resp) {
         arr_.push_back(resp);
     }
 
@@ -142,9 +142,9 @@ public:
         return std::string(ss.str());
     }
 
-    static RespArray Null() {
-        auto rb = RespArray();
-        rb.SetNull();
+    static RespArray *Null() {
+        auto rb = new RespArray();
+        rb->SetNull(true);
         return rb;
     }
 
@@ -152,8 +152,12 @@ public:
         return is_null_;
     }
 
-    void SetNull() {
-        is_null_ = true;
+    size_t size() {
+        return arr_.size();
+    };
+
+    void SetNull(bool val) {
+        is_null_ = val;
     }
 
     ~RespArray() {
@@ -165,10 +169,223 @@ public:
 
 private:
     bool is_null_;
-    std::vector<RedisRespBase *> arr_;
+    std::vector<RespBase *> arr_;
 
 };
 
+class RedisResp {
+public:
+    boost::optional<std::shared_ptr<RespArray>> parse(std::string raw) {
+        int32_t bulk_string_count = 0;
+        int32_t array_count = 0;
+
+        for ( std::string::iterator it = raw.begin(); it != raw.end(); ++it) {
+            if (state_ == 0) {
+                switch (*it) {
+                    case '+': state_ = 1; break;
+                    case '-': state_ = 2; break;
+                    case ':': state_ = 3; break;
+                    case '$': state_ = 4; bulk_string_count = 0; break;
+                    case '*': state_ = 6; array_count = 0; break;
+                    default: return opt_none;
+                }
+            } else if (state_ == 1 || state_ == 2 || state_ == 3) {
+                if (*it == '\r') {
+                    if (state_ == 1) {
+                        state_ = 16;
+                    } else if (state_ == 2) {
+                        state_ = 26;
+                    } else {
+                        state_ = 36;
+                    }
+                } else {
+                    AddBuffer(*it);
+                }
+            } else if (state_ == 16 || state_ == 26 || state_ == 36) {
+                if (*it == '\n') {
+                    auto buf = GetBuffer();
+                    if (state_ == 16) {
+                        AddRespObject(new RespSimpleString(buf));
+                    } else if (state_ == 26) {
+                        auto str = new RespSimpleString(buf);
+                        str->SetError(true);
+                        AddRespObject(str);
+                    } else {
+                        AddRespObject(new RespInteger(buf));
+                    }
+                } else {
+                    return opt_none;
+                }
+            } else if (state_ == 4) {
+                // number + \r\n
+                if (*it == '-' || (std::isdigit(*it))) {
+                    if (*it == '-') { state_ = 42; }
+                    AddBuffer(*it);
+                } else if (*it == '\r') {
+                    state_ = 46;
+                } else {
+                    return opt_none;
+                }
+            } else if (state_ == 42) {
+                if (*it == '1') {
+                    AddBuffer('1');
+                    state_ = 43;
+                } else {
+                    return opt_none;
+                }
+            }  else if (state_ == 43) {
+                if (*it == '\r') {
+                    state_ = 46;
+                } else {
+                    return opt_none;
+                }
+
+            } else if (state_ == 46) {
+                if (*it == '\n') {
+                    auto buf = GetBuffer();
+                    bulk_string_count = std::stoi(buf);
+                    if (bulk_string_count == -1) {
+                        AddRespObject(RespBulkString::Null())
+                    } else {
+                        // reset to start
+                        state_ = 50;
+                    }
+
+                } else {
+                    return opt_none;
+                }
+            } else if (state_ == 50) {
+                // std::cout << "ss:count:" << ss.tellp() << std::endl;
+                if (GetBuffSize() < bulk_string_count) {
+                    AddBuffer(*it);
+                } else {
+                    if (*it == '\r') {
+                        state_ = 56;
+                    } else {
+                        return opt_none;
+                    }
+                }
+            } else if (state_ == 56) {
+                if (*it == '\n') {
+                    auto buf = GetBuffer();
+                    auto top = stack_.top();
+                    auto str = new RespBulkString(buf);
+                    top->Add(str);
+                    ResetState();
+                } else {
+                    return opt_none;
+                }
+            } else if (state_ == 6) {
+                if (*it == '-' || (std::isdigit(*it))) {
+                    if (*it == '-') { state_ = 62; }
+                    AddBuffer(*it);
+                } else if (*it == '\r') {
+                    state_ = 66;
+                } else {
+                    return opt_none;
+                }
+            } else if (state_ == 62) {
+                if (*it == '1') {
+                    AddBuffer('1');
+                    state_ = 63;
+                } else {
+                    return opt_none;
+                }
+            } else if (state_ == 63) {
+                if (*it == '\r') {
+                    state_ = 66;
+                } else {
+                    return opt_none;
+                }
+
+            } else if (state_ == 66) {
+                if (*it == '\n') {
+                    auto buf = GetBuffer();
+                    array_count = std::stoi(buf);
+                    if (array_count == -1) {
+                        AddRespObject(RespArray::Null());
+                    } else {
+                        stack_.push(new RespArray());
+                        array_count_stack_.push(array_count);
+                        ResetState();
+                        // reset to start
+                    }
+
+                } else {
+                    return opt_none;
+                }
+            }
+        }
+
+        if(state_ != 0 || stack_.size() != 1) { return opt_none; }
+
+        auto resp = std::shared_ptr<RespArray>(stack_.top());
+        return boost::make_optional(resp);
+    }
+
+    explicit RedisResp() {
+        // stack_ = std::stack<RespArray *>();
+        // array_count_stack_ = std::stack<int>();
+        stack_.push(new RespArray());
+        // top level
+        array_count_stack_.push(-1);
+        opt_none = boost::optional<std::shared_ptr<RespArray>>(boost::none);
+        state_ = 0;
+    }
+
+    RedisResp(const RedisResp &) = delete;
+    RedisResp(const RedisResp &&) = delete;
+
+private:
+    void AddBuffer(char ch) {
+        ss_ << ch;
+    }
+
+    std::string GetBuffer() {
+        auto s = ss_.str();
+        ss_.str(std::string());
+        return s;
+    }
+
+    void ResetState() {
+        state_ = 0;
+    }
+
+    long GetBuffSize() {
+        return ss_.tellp();
+    }
+
+    void AddRespObject(RespBase *obj) {
+        auto top = stack_.top();
+        auto stack_count = array_count_stack_.top();
+
+        ResetState();
+        // top level
+        if (stack_count == -1) {
+            top->Add(obj);
+            return;
+        }
+
+        if (top->size() < stack_count) {
+            top->Add(obj);
+        }
+
+        // pop up and add to stack
+        if (top->size() == stack_count) {
+            stack_.pop();
+            array_count_stack_.pop();
+            auto tp = stack_.top();
+            tp->Add(top);
+        }
+    }
+
+
+    int state_;
+    std::stringstream ss_;
+    std::stack<RespArray *> stack_;
+    std::stack<int> array_count_stack_;
+    boost::optional<std::shared_ptr<RespArray>> opt_none;
+};
 
 boost::optional<std::shared_ptr<RespArray>> redis_resp_parse(std::string raw) {
     RespArray *resp_array = new RespArray();
