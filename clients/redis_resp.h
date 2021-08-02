@@ -175,7 +175,7 @@ private:
 
 class RedisResp {
 public:
-    boost::optional<std::shared_ptr<RespArray>> parse(std::string raw) {
+    boost::optional<RespArray *> parse(std::string raw) {
         int32_t bulk_string_count = 0;
         int32_t array_count = 0;
 
@@ -245,7 +245,7 @@ public:
                     auto buf = GetBuffer();
                     bulk_string_count = std::stoi(buf);
                     if (bulk_string_count == -1) {
-                        AddRespObject(RespBulkString::Null())
+                        AddRespObject(RespBulkString::Null());
                     } else {
                         // reset to start
                         state_ = 50;
@@ -319,7 +319,7 @@ public:
 
         if(state_ != 0 || stack_.size() != 1) { return opt_none; }
 
-        auto resp = std::shared_ptr<RespArray>(stack_.top());
+        auto resp = stack_.top();
         return boost::make_optional(resp);
     }
 
@@ -328,13 +328,21 @@ public:
         // array_count_stack_ = std::stack<int>();
         stack_.push(new RespArray());
         // top level
-        array_count_stack_.push(-1);
-        opt_none = boost::optional<std::shared_ptr<RespArray>>(boost::none);
+        array_count_stack_.push(kTopArrayCount);
+        opt_none = boost::optional<RespArray *>(boost::none);
         state_ = 0;
     }
 
     RedisResp(const RedisResp &) = delete;
     RedisResp(const RedisResp &&) = delete;
+
+    ~RedisResp() {
+        while (!stack_.empty()) {
+            auto top = stack_.top();
+            stack_.pop();
+            delete top;
+        }
+    }
 
 private:
     void AddBuffer(char ch) {
@@ -361,7 +369,7 @@ private:
 
         ResetState();
         // top level
-        if (stack_count == -1) {
+        if (stack_count == kTopArrayCount) {
             top->Add(obj);
             return;
         }
@@ -380,11 +388,12 @@ private:
     }
 
 
+    const int kTopArrayCount = -1;
     int state_;
     std::stringstream ss_;
     std::stack<RespArray *> stack_;
     std::stack<int> array_count_stack_;
-    boost::optional<std::shared_ptr<RespArray>> opt_none;
+    boost::optional<RespArray *> opt_none;
 };
 
 boost::optional<std::shared_ptr<RespArray>> redis_resp_parse(std::string raw) {
