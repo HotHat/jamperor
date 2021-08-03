@@ -11,37 +11,13 @@ using namespace boost::unit_test;
 
 BOOST_AUTO_TEST_CASE(test_simple_string)
 {
-    std::shared_ptr<RespSimpleString> simple_string(new RespSimpleString("OK"));
-    std::shared_ptr<RespSimpleString> simple_string2(new RespSimpleString("Operation against a key holding the wrong kind of value"));
+    RespArray arr;
+    auto auth = new RespBulkString("auth");
+    auto password = new RespBulkString("NtoceahobN8287281Nre2");
+    arr.Add(auth);
+    arr.Add(password);
 
-   // std::cout << simple_string->ToString() << std::endl;
-   // std::cout << simple_string2->Error("WRONGTYPE") << std::endl;
-
-    RespBulkString bulk_string("foobar");
-    std::cout << bulk_string.ToString() << std::endl;
-
-    // std::cout << RespBulkString::Empty().ToString() << std::endl;
-    // std::cout << RespBulkString::Null().ToString() << std::endl;
-
-    RespInteger integer("123456");
-    RespInteger integer2(123456);
-    std::cout << integer.ToString() << std::endl;
-    std::cout << integer2.ToString() << std::endl;
-
-//    std::shared_ptr<RespArray> resp_array_inner(new RespArray());
-//    resp_array_inner->Add(simple_string);
-//    resp_array_inner->Add(simple_string2);
-
-//    std::cout << "array test" << std::endl;
-//    RespArray resp_array;
-
-//    resp_array.Add(simple_string);
-//    resp_array.Add(simple_string2);
-//    resp_array.Add(resp_array_inner);
-
-//    std::cout << resp_array.ToString() << std::endl;
-//    std::cout << RespArray::Null().ToString() << std::endl;
-
+    std::cout << arr.ToString() << std::endl;
 
     BOOST_CHECK(true);
 }
@@ -49,19 +25,34 @@ BOOST_AUTO_TEST_CASE(test_simple_string)
 BOOST_AUTO_TEST_CASE(test_parse_string)
 {
     RedisResp  resp, resp1, resp2;
-    auto simple_str = resp.parse(std::string("+PONG"));
+    auto simple_str = resp.parse(std::string("*2\r\n"
+                                             "$4\r\n"
+                                             "4096\r\n"
+                                             "*6\r\n"
+                                             "$41\r\n"
+                                             "qytrelease_cache:manufacturer_data.id=632\r\n"
+                                             "$39\r\n"
+                                             "qytrelease_cache:goods_region_id_776345\r\n"
+                                             "$50\r\n"
+                                             "qytceshi_cache:api_oauth_cache_keyzsyt_sync_real_1\r\n"
+                                             "$39\r\n"
+                                             "qytrelease_cache:dosage_form_data.id=67\r\n"
+                                             "$39\r\n"
+                                             "qytrelease_cache:goods_region_id_515018\r\n"
+                                             "$38\r\n"
+                                             "qytrelease_cache:goods_region_id_59574\r\n"));
     if (simple_str) {
         std::cout << simple_str.value()->ToString() << std::endl;
     } else {
         std::cout << "simple string parse error" << std::endl;
     }
 
-    auto simple_str2 = resp.parse(std::string("\r\n+PONG\r\n"));
-    if (simple_str2) {
-        std::cout << simple_str2.value()->ToString() << std::endl;
-    } else {
-        std::cout << "simple string parse error" << std::endl;
-    }
+    // auto simple_str2 = resp.parse(std::string("\r\n+PONG\r\n"));
+    // if (simple_str2) {
+    //     std::cout << simple_str2.value()->ToString() << std::endl;
+    // } else {
+    //     std::cout << "simple string parse error" << std::endl;
+    // }
 
 
 

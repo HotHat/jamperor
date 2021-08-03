@@ -125,8 +125,9 @@ public:
         arr_ = std::vector<RespBase *>();
     }
 
-    void Add(RespBase *resp) {
+    RespArray* Add(RespBase *resp) {
         arr_.push_back(resp);
+        return this;
     }
 
     std::string ToString() {
@@ -302,10 +303,7 @@ private:
         } else if (state_ == 56) {
             if (*it == '\n') {
                 auto buf = GetBuffer();
-                auto top = stack_.top();
-                auto str = new RespBulkString(buf);
-                top->Add(str);
-                ResetState();
+                AddRespObject(new RespBulkString(buf));
             } else {
                 return false;
             }
@@ -387,11 +385,15 @@ private:
         }
 
         // pop up and add to stack
-        if (top->size() == stack_count) {
+
+        while (top->size() == stack_count) {
             stack_.pop();
             array_count_stack_.pop();
             auto tp = stack_.top();
             tp->Add(top);
+
+            top = stack_.top();
+            stack_count = array_count_stack_.top();
         }
     }
 
