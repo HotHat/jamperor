@@ -49,34 +49,44 @@ BOOST_AUTO_TEST_CASE(test_simple_string)
 BOOST_AUTO_TEST_CASE(test_parse_string)
 {
     RedisResp  resp, resp1, resp2;
-    auto simple_str = resp.parse(std::string("+OK\r\n"));
+    auto simple_str = resp.parse(std::string("+PONG"));
     if (simple_str) {
         std::cout << simple_str.value()->ToString() << std::endl;
     } else {
         std::cout << "simple string parse error" << std::endl;
     }
 
-    auto error_str = resp1.parse(std::string("-ERR unknown command 'foobar'\r\n"));
-    if (error_str) {
-        std::cout << error_str.value()->ToString() << std::endl;
+    auto simple_str2 = resp.parse(std::string("\r\n+PONG\r\n"));
+    if (simple_str2) {
+        std::cout << simple_str2.value()->ToString() << std::endl;
     } else {
-        std::cout << "error string parse error" << std::endl;
+        std::cout << "simple string parse error" << std::endl;
     }
 
-    auto integer_str = resp2.parse(std::string(":888123\r\n"));
-    if (integer_str) {
-        std::cout << integer_str.value()->ToString() << std::endl;
-    } else {
-        std::cout << "integer parse error" << std::endl;
-    }
 
-    std::cout << "run the end" << std::endl;
-    auto bulk_str = resp.parse(std::string("$8\r\n12345678\r\n"));
-    if (bulk_str) {
-        std::cout << bulk_str.value()->ToString() << std::endl;
-    } else {
-        std::cout << "bulk string parse error" << std::endl;
-    }
+
+
+    // auto error_str = resp1.parse(std::string("-ERR unknown command 'foobar'\r\n"));
+    // if (error_str) {
+    //     std::cout << error_str.value()->ToString() << std::endl;
+    // } else {
+    //     std::cout << "error string parse error" << std::endl;
+    // }
+    //
+    // auto integer_str = resp2.parse(std::string(":888123\r\n"));
+    // if (integer_str) {
+    //     std::cout << integer_str.value()->ToString() << std::endl;
+    // } else {
+    //     std::cout << "integer parse error" << std::endl;
+    // }
+    //
+    // std::cout << "run the end" << std::endl;
+    // auto bulk_str = resp.parse(std::string("$8\r\n12345678\r\n"));
+    // if (bulk_str) {
+    //     std::cout << bulk_str.value()->ToString() << std::endl;
+    // } else {
+    //     std::cout << "bulk string parse error" << std::endl;
+    // }
 
     // auto opt = redis_resp_parse(std::string("+OK\r\n-ERR unknown command 'foobar'\r\n:1000\r\n$"));
     // if (opt) {

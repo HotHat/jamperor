@@ -176,144 +176,11 @@ private:
 class RedisResp {
 public:
     boost::optional<RespArray *> parse(std::string raw) {
-        int32_t bulk_string_count = 0;
-        int32_t array_count = 0;
-
-        for ( std::string::iterator it = raw.begin(); it != raw.end(); ++it) {
-            if (state_ == 0) {
-                switch (*it) {
-                    case '+': state_ = 1; break;
-                    case '-': state_ = 2; break;
-                    case ':': state_ = 3; break;
-                    case '$': state_ = 4; bulk_string_count = 0; break;
-                    case '*': state_ = 6; array_count = 0; break;
-                    default: return opt_none;
-                }
-            } else if (state_ == 1 || state_ == 2 || state_ == 3) {
-                if (*it == '\r') {
-                    if (state_ == 1) {
-                        state_ = 16;
-                    } else if (state_ == 2) {
-                        state_ = 26;
-                    } else {
-                        state_ = 36;
-                    }
-                } else {
-                    AddBuffer(*it);
-                }
-            } else if (state_ == 16 || state_ == 26 || state_ == 36) {
-                if (*it == '\n') {
-                    auto buf = GetBuffer();
-                    if (state_ == 16) {
-                        AddRespObject(new RespSimpleString(buf));
-                    } else if (state_ == 26) {
-                        auto str = new RespSimpleString(buf);
-                        str->SetError(true);
-                        AddRespObject(str);
-                    } else {
-                        AddRespObject(new RespInteger(buf));
-                    }
-                } else {
-                    return opt_none;
-                }
-            } else if (state_ == 4) {
-                // number + \r\n
-                if (*it == '-' || (std::isdigit(*it))) {
-                    if (*it == '-') { state_ = 42; }
-                    AddBuffer(*it);
-                } else if (*it == '\r') {
-                    state_ = 46;
-                } else {
-                    return opt_none;
-                }
-            } else if (state_ == 42) {
-                if (*it == '1') {
-                    AddBuffer('1');
-                    state_ = 43;
-                } else {
-                    return opt_none;
-                }
-            }  else if (state_ == 43) {
-                if (*it == '\r') {
-                    state_ = 46;
-                } else {
-                    return opt_none;
-                }
-
-            } else if (state_ == 46) {
-                if (*it == '\n') {
-                    auto buf = GetBuffer();
-                    bulk_string_count = std::stoi(buf);
-                    if (bulk_string_count == -1) {
-                        AddRespObject(RespBulkString::Null());
-                    } else {
-                        // reset to start
-                        state_ = 50;
-                    }
-
-                } else {
-                    return opt_none;
-                }
-            } else if (state_ == 50) {
-                // std::cout << "ss:count:" << ss.tellp() << std::endl;
-                if (GetBuffSize() < bulk_string_count) {
-                    AddBuffer(*it);
-                } else {
-                    if (*it == '\r') {
-                        state_ = 56;
-                    } else {
-                        return opt_none;
-                    }
-                }
-            } else if (state_ == 56) {
-                if (*it == '\n') {
-                    auto buf = GetBuffer();
-                    auto top = stack_.top();
-                    auto str = new RespBulkString(buf);
-                    top->Add(str);
-                    ResetState();
-                } else {
-                    return opt_none;
-                }
-            } else if (state_ == 6) {
-                if (*it == '-' || (std::isdigit(*it))) {
-                    if (*it == '-') { state_ = 62; }
-                    AddBuffer(*it);
-                } else if (*it == '\r') {
-                    state_ = 66;
-                } else {
-                    return opt_none;
-                }
-            } else if (state_ == 62) {
-                if (*it == '1') {
-                    AddBuffer('1');
-                    state_ = 63;
-                } else {
-                    return opt_none;
-                }
-            } else if (state_ == 63) {
-                if (*it == '\r') {
-                    state_ = 66;
-                } else {
-                    return opt_none;
-                }
-
-            } else if (state_ == 66) {
-                if (*it == '\n') {
-                    auto buf = GetBuffer();
-                    array_count = std::stoi(buf);
-                    if (array_count == -1) {
-                        AddRespObject(RespArray::Null());
-                    } else {
-                        stack_.push(new RespArray());
-                        array_count_stack_.push(array_count);
-                        ResetState();
-                        // reset to start
-                    }
-
-                } else {
-                    return opt_none;
-                }
+        size_t index = 0;
+        for ( std::string::iterator it = raw.begin(); it != raw.end(); ++it, ++index) {
+            auto result = StateMachine(it);
+            if (!result) {
+                return opt_none;
             }
         }
 
@@ -345,6 +212,147 @@ public:
     }
 
 private:
+
+    bool StateMachine(const std::string::iterator &it) {
+        if (state_ == 0) {
+            switch (*it) {
+                case '+': state_ = 1; break;
+                case '-': state_ = 2; break;
+                case ':': state_ = 3; break;
+                case '$': state_ = 4; bulk_string_count_ = 0; break;
+                case '*': state_ = 6; array_count_ = 0; break;
+                default: return false;
+            }
+        } else if (state_ == 1 || state_ == 2 || state_ == 3) {
+            if (*it == '\r') {
+                if (state_ == 1) {
+                    state_ = 16;
+                } else if (state_ == 2) {
+                    state_ = 26;
+                } else {
+                    state_ = 36;
+                }
+            } else {
+                AddBuffer(*it);
+            }
+        } else if (state_ == 16 || state_ == 26 || state_ == 36) {
+            if (*it == '\n') {
+                auto buf = GetBuffer();
+                if (state_ == 16) {
+                    AddRespObject(new RespSimpleString(buf));
+                } else if (state_ == 26) {
+                    auto str = new RespSimpleString(buf);
+                    str->SetError(true);
+                    AddRespObject(str);
+                } else {
+                    AddRespObject(new RespInteger(buf));
+                }
+            } else {
+                return false;
+            }
+        } else if (state_ == 4) {
+            // number + \r\n
+            if (*it == '-' || (std::isdigit(*it))) {
+                if (*it == '-') { state_ = 42; }
+                AddBuffer(*it);
+            } else if (*it == '\r') {
+                state_ = 46;
+            } else {
+                return false;
+            }
+        } else if (state_ == 42) {
+            if (*it == '1') {
+                AddBuffer('1');
+                state_ = 43;
+            } else {
+                return false;
+            }
+        }  else if (state_ == 43) {
+            if (*it == '\r') {
+                state_ = 46;
+            } else {
+                return false;
+            }
+
+        } else if (state_ == 46) {
+            if (*it == '\n') {
+                auto buf = GetBuffer();
+                bulk_string_count_ = std::stoi(buf);
+                if (bulk_string_count_ == -1) {
+                    AddRespObject(RespBulkString::Null());
+                } else {
+                    // reset to start
+                    state_ = 50;
+                }
+
+            } else {
+                return false;
+            }
+        } else if (state_ == 50) {
+            // std::cout << "ss:count:" << ss.tellp() << std::endl;
+            if (GetBuffSize() < bulk_string_count_) {
+                AddBuffer(*it);
+            } else {
+                if (*it == '\r') {
+                    state_ = 56;
+                } else {
+                    return false;
+                }
+            }
+        } else if (state_ == 56) {
+            if (*it == '\n') {
+                auto buf = GetBuffer();
+                auto top = stack_.top();
+                auto str = new RespBulkString(buf);
+                top->Add(str);
+                ResetState();
+            } else {
+                return false;
+            }
+        } else if (state_ == 6) {
+            if (*it == '-' || (std::isdigit(*it))) {
+                if (*it == '-') { state_ = 62; }
+                AddBuffer(*it);
+            } else if (*it == '\r') {
+                state_ = 66;
+            } else {
+                return false;
+            }
+        } else if (state_ == 62) {
+            if (*it == '1') {
+                AddBuffer('1');
+                state_ = 63;
+            } else {
+                return false;
+            }
+        } else if (state_ == 63) {
+            if (*it == '\r') {
+                state_ = 66;
+            } else {
+                return false;
+            }
+
+        } else if (state_ == 66) {
+            if (*it == '\n') {
+                auto buf = GetBuffer();
+                array_count_ = std::stoi(buf);
+                if (array_count_ == -1) {
+                    AddRespObject(RespArray::Null());
+                } else {
+                    stack_.push(new RespArray());
+                    array_count_stack_.push(array_count_);
+                    ResetState();
+                    // reset to start
+                }
+
+            } else {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
     void AddBuffer(char ch) {
         ss_ << ch;
     }
@@ -389,6 +397,8 @@ private:
 
 
     const int kTopArrayCount = -1;
+    int32_t bulk_string_count_ = 0;
+    int32_t array_count_ = 0;
     int state_;
     std::stringstream ss_;
     std::stack<RespArray *> stack_;
