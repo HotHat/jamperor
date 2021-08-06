@@ -1,0 +1,17 @@
+{
+    "name": "hothat/redis_resp",
+    "authors": [
+        {
+            "name": "luyuh",
+            "email": "774964107@qq.com"
+        }
+    ],
+    "require": {
+    },
+    "require-dev": {
+        "phpunit/phpunit": "^6.2.0"
+    },
+    "autoload": {
+        "psr-4": {"Resp\\": "src/"}
+    }
+}
