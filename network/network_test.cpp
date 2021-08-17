@@ -4,6 +4,7 @@
 
 #include "socket.h"
 #include <iostream>
+#include "epoll.h"
 
 int main(int argc, char* argv[])
 {
@@ -13,5 +14,9 @@ int main(int argc, char* argv[])
     Address address("47.98.198.35");
 
     socket.Connect(address, 80);
+
+    Epoll epoll;
+
+    epoll.Add(socket);
 
 }

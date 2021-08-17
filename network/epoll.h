@@ -5,6 +5,9 @@
 #ifndef REDIS_CLIENT_EPOLL_H
 #define REDIS_CLIENT_EPOLL_H
 #include <sys/epoll.h>
+#include "socket.h"
+
+namespace Network {
 
 class Epoll {
 public:
@@ -19,9 +22,9 @@ public:
         fd_ = epoll_create(size);
     }
 
-    void Add();
-    void Delete();
-    void Modify();
+    void Add(Socket &socket);
+    void Delete(Socket &socket);
+    void Modify(Socket &socket);
     void Wait();
 
 private:
@@ -31,3 +34,5 @@ private:
 
 
 #endif //REDIS_CLIENT_EPOLL_H
+
+} // end namespace Network

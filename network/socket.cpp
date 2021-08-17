@@ -5,6 +5,6 @@
 #include "socket.h"
 
 
-void Socket::SetOption() {
+void Network::Socket::SetOption() {
 
 }
