@@ -35,6 +35,6 @@ target_link_libraries(tester
         Boost::thread
         )
 
-set(CLIENTS_DIR ${PROJECT_SOURCE_DIR}/clients)
-add_subdirectory(CLIENTS_DIR)
+add_subdirectory(clients)
+add_subdirectory(network)
 
