@@ -8,3 +8,8 @@
 void Network::Socket::SetOption() {
 
 }
+
+void Network::Socket::CloseWrite() {
+    guard(shutdown(socket_, SHUT_WR), "close write error");
+
+}

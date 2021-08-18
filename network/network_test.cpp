@@ -2,22 +2,23 @@
 // Created by admin on 2021/8/17.
 //
 
-#include "socket.h"
+// #include "socket.h"
 #include "connection.h"
 #include <iostream>
 #include "epoll.h"
 
-using namespace Network;
+// using namespace Network;
+
 int main(int argc, char* argv[])
 {
     // std::cout << "hello world" << std::endl;
-    Socket socket;
+    Network::Socket socket;
 
     Address address("47.98.198.35");
 
     socket.Connect(address, 80);
 
-    Connection conn(socket.GetSocket());
+    Network::Connection conn(socket.GetSocket());
 
     std::string message("GET / HTTP/1.1\r\nHost: release.quanyaotong.com\r\n\r\n");
 
@@ -25,6 +26,8 @@ int main(int argc, char* argv[])
     std::cout << "write count: " << count  << std::endl;
 
     conn.Write();
+
+    socket.CloseWrite();
 
     ssize_t n;
     do {

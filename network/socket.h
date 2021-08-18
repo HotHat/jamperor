@@ -17,13 +17,11 @@
 
 namespace Network {
 
-using namespace Network;
-
 class Socket {
 public:
     explicit Socket()
     {
-        socket_ = guard(::socket(AF_INET, SOCK_STREAM, 0), "socket create failure");
+        socket_ = Network::guard(::socket(AF_INET, SOCK_STREAM, 0), "socket create failure");
         // int flags = guard(fcntl(socket_, F_GETFL), "could not get flags on TCP listening socket");
         // guard(fcntl(socket_, F_SETFL, flags | O_NONBLOCK), "could not set TCP listening socket to be non-blocking");
     }
@@ -37,6 +35,8 @@ public:
     void Listen();
 
     void Bind();
+
+    void CloseWrite();
 
     void Connect(Address &address, int port)
     {

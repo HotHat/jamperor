@@ -22,6 +22,12 @@ ssize_t Network::Connection::Read() {
     if (read_cur_ < read_end_) {
         n = ::read(fd_, read_cur_, read_end_ - read_cur_);
         read_cur_ += n;
+
+        // end of content
+        // std::cout << "end of char: " << (int)(*(read_cur_-1))  << " | " << (*(read_cur_-1) == '\0') << std::endl;
+        // if (*(read_cur_-1) == '\0') {
+        //     return -1;
+        // }
     }
 
     return n;
