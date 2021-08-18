@@ -1,6 +1,9 @@
 //
 // Created by Glyhux on 2021/8/17.
 //
+
+#ifndef NETWORK_TOOLS_H
+
 #include <cstdio>
 #include <cstdlib>
 
@@ -16,3 +19,5 @@ namespace Network {
 
 
 } // namespace Network
+
+#endif

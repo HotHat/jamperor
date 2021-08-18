@@ -3,7 +3,7 @@ set(CMAKE_CXX_STANDARD  17)
 
 project(network)
 
-add_library(network STATIC socket.cpp tools.h)
+add_library(network STATIC socket.cpp connection.cpp epoll.cpp)
 
 
 add_executable(network_test network_test.cpp)

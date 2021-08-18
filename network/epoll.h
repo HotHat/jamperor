@@ -2,8 +2,8 @@
 // Created by admin on 2021/8/17.
 //
 
-#ifndef REDIS_CLIENT_EPOLL_H
-#define REDIS_CLIENT_EPOLL_H
+#ifndef NETWORK_EPOLL_H
+#define NETWORK_EPOLL_H
 #include <sys/epoll.h>
 #include "socket.h"
 
@@ -33,6 +33,7 @@ private:
 };
 
 
-#endif //REDIS_CLIENT_EPOLL_H
 
 } // end namespace Network
+
+#endif //NETWORK_EPOLL_H

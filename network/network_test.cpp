@@ -3,9 +3,11 @@
 //
 
 #include "socket.h"
+#include "connection.h"
 #include <iostream>
 #include "epoll.h"
 
+using namespace Network;
 int main(int argc, char* argv[])
 {
     // std::cout << "hello world" << std::endl;
@@ -15,8 +17,22 @@ int main(int argc, char* argv[])
 
     socket.Connect(address, 80);
 
-    Epoll epoll;
+    Connection conn(socket.GetSocket());
 
-    epoll.Add(socket);
+    std::string message("GET / HTTP/1.1\r\nHost: release.quanyaotong.com\r\n\r\n");
 
+    auto count = conn.AddWriteBuffer(message.c_str(), message.size());
+    std::cout << "write count: " << count  << std::endl;
+
+    conn.Write();
+
+    ssize_t n;
+    do {
+
+        n = conn.Read();
+        std::cout << "read count: " << n  << std::endl;
+
+    } while (n > 0);
+
+    conn.PrintReadBuffer();
 }

@@ -2,8 +2,8 @@
 // Created by admin on 2021/8/17.
 //
 
-#ifndef REDIS_CLIENT_SOCKET_H
-#define REDIS_CLIENT_SOCKET_H
+#ifndef NETWORK_SOCKET_H
+#define NETWORK_SOCKET_H
 
 #include "address.h"
 #include "tools.h"
@@ -24,8 +24,8 @@ public:
     explicit Socket()
     {
         socket_ = guard(::socket(AF_INET, SOCK_STREAM, 0), "socket create failure");
-        int flags = guard(fcntl(socket_, F_GETFL), "could not get flags on TCP listening socket");
-        guard(fcntl(socket_, F_SETFL, flags | O_NONBLOCK), "could not set TCP listening socket to be non-blocking");
+        // int flags = guard(fcntl(socket_, F_GETFL), "could not get flags on TCP listening socket");
+        // guard(fcntl(socket_, F_SETFL, flags | O_NONBLOCK), "could not set TCP listening socket to be non-blocking");
     }
 
     explicit Socket(int socket) { socket_ = socket; }
@@ -42,7 +42,7 @@ public:
     {
         sockaddr_in socket_address = address.GetIpV4(port);
 
-        int r = ::connect(socket_, reinterpret_cast<sockaddr *>(&socket_address), sizeof(sockaddr));
+        int r = ::connect(socket_, reinterpret_cast<sockaddr *>(&socket_address), sizeof(sockaddr_in));
         guard(r, "connect fail");
     }
 
@@ -56,6 +56,7 @@ private:
 };
 
 
-#endif //REDIS_CLIENT_SOCKET_H
 
 } // end namespace Network
+
+#endif //NETWORK_SOCKET_H
