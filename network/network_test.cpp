@@ -12,13 +12,15 @@
 
 int main(int argc, char* argv[])
 {
-    Network::HttpResponseParse parse;
 
     Network::Buffer buffer;
     std::string s = "HTTP/1.1 302 Found\r\n";
     buffer.Add(s.c_str(), s.size());
 
-    parse.SetBuffer(&buffer);
+    Network::HttpHeader http_header;
+
+    Network::HttpResponseParse parse(&http_header, &buffer);
+//    parse.SetBuffer(&buffer);
     auto state = parse.Parse();
 
     std::cout << static_cast<std::underlying_type<Network::ParseState>::type>(state) << std::endl;

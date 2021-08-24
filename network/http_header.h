@@ -7,6 +7,8 @@
 #include <string>
 #include <map>
 
+namespace Network {
+
 struct HttpHeader {
     int major;
     int minor;
@@ -17,4 +19,5 @@ struct HttpHeader {
     bool is_valid_header;
 };
 
+}
 #endif //NETWORK_HTTP_H

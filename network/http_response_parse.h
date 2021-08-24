@@ -5,6 +5,7 @@
 #ifndef NETWORK_HTTP_RESPONSE_PARSE_H
 #define NETWORK_HTTP_RESPONSE_PARSE_H
 #include "buffer.h"
+#include "http_header.h"
 #include <functional>
 #include <sstream>
 
@@ -49,10 +50,11 @@ enum class HeaderState {
 
 class HttpResponseParse {
 public:
+    HttpResponseParse(HttpHeader *http_header, Buffer *buf);
     ParseState Parse();
-    void SetBuffer(Buffer *buf) {
-        buffer_ = buf;
-    }
+//    void SetBuffer(Buffer *buf) {
+//        buffer_ = buf;
+//    }
 private:
     ParseState ParseStatusLine();
 
@@ -69,7 +71,9 @@ private:
     StatusLineState status_line_state_;
     HeaderState header_state_;
     Network::Buffer *buffer_;
+    Network::HttpHeader *http_header_;
     std::stringstream ss;
+    bool is_valid_header_;
     // current parse position
     byte_t *pos_;
     // name
