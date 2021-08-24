@@ -32,7 +32,19 @@ enum class ParseState {
     kOk,
     kError,
     kAgain,
-    kEnd
+    kInvalidHeader,
+    kParseHeaderDone
+};
+
+enum class HeaderState {
+    kStart,
+    kName,
+    kSpaceBeforeValue,
+    kValue,
+    kSpaceAfterValue,
+    kIgnoreLine,
+    kAlmostDone,
+    kHeaderAlmostDone
 };
 
 class HttpResponseParse {
@@ -44,7 +56,7 @@ public:
 private:
     ParseState ParseStatusLine();
 
-    void ParseHeader();
+    ParseState ParseHeader();
 
     void ParseHeaders();
 
@@ -52,13 +64,20 @@ private:
 
     // bool Compare(StatusLineState init, StatusLineState next, std::function<bool()> &compare);
 
-
-
     std::string reason_phrase_;
     int http_code_;
     StatusLineState status_line_state_;
+    HeaderState header_state_;
     Network::Buffer *buffer_;
     std::stringstream ss;
+    // current parse position
+    byte_t *pos_;
+    // name
+    byte_t *header_name_start;
+    byte_t *header_name_end;
+    // value
+    byte_t *header_start;
+    byte_t *header_end;
 };
 
 } // end network namespace
