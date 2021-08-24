@@ -30,7 +30,7 @@ public:
 
     int GetSocket() const { return socket_; }
 
-    void SetOption();
+    void SetNonBlock();
 
     void Listen();
 

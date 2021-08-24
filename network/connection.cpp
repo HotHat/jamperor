@@ -19,15 +19,33 @@ void Network::Connection::Write() {
 
 ssize_t Network::Connection::Read() {
     ssize_t  n = 0;
+    char *p = read_cur_;
+START_:
     if (read_cur_ < read_end_) {
-        n = ::read(fd_, read_cur_, read_end_ - read_cur_);
+        n = ::read(fd_, read_cur_, 1);
         read_cur_ += n;
 
+
+        std::cout << "EAGAIN code: " << EAGAIN << std::endl;
+        if (n == EAGAIN || n == EWOULDBLOCK) { goto START_; }
+
+
+        if (n == -1) {
+            perror("read error");
+        }
+
         // end of content
-        // std::cout << "end of char: " << (int)(*(read_cur_-1))  << " | " << (*(read_cur_-1) == '\0') << std::endl;
-        // if (*(read_cur_-1) == '\0') {
-        //     return -1;
+        // std::cout << "end of char: " << (int)(*(read_cur_-1))  << " | " << (*(read_cur_-1) == EOF) << std::endl;
+        // if (*(read_cur_-1) == EOF) {
+            // return -1;
         // }
+
+        std::cout << "read data: ";
+        for (int i = 0; i < n; ++i)
+        {
+            std::cout << (int)p[i] << " " ;
+        }
+        std::cout << std::endl;
     }
 
     return n;
