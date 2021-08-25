@@ -14,14 +14,39 @@ int main(int argc, char* argv[])
 {
 
     Network::Buffer buffer;
-    std::string s = "HTTP/1.1 302 Found\r\n";
+    std::string s = "HTTP/1.1 200 OK\r\n"
+                    "Server: nginx\r\n"
+                    "Pragma: no-cache\r\n\r\n";
     buffer.Add(s.c_str(), s.size());
 
     Network::HttpHeader http_header;
 
     Network::HttpResponseParse parse(&http_header, &buffer);
 //    parse.SetBuffer(&buffer);
-    auto state = parse.Parse();
+    if (parse.ParseStatusLine() != Network::ParseState::kOk) {
+        std::cout << "parser status line fail" << std::endl;
+    }
+//     while (true) {
+    Network::ParseState state;
+    while (true) {
+        state = parse.ParseHeader();
+        if (state == Network::ParseState::kOk) {
+            // parse header again
+
+        }
+        else if (state == Network::ParseState::kAgain) {
+            // wait read more data
+
+        }
+        else if (state == Network::ParseState::kInvalidHeader) {
+            // close connection
+            break;
+
+        } else if (state == Network::ParseState::kParseHeaderDone) {
+            // parse http body
+            break;
+        }
+    }
 
     std::cout << static_cast<std::underlying_type<Network::ParseState>::type>(state) << std::endl;
 

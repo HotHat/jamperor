@@ -52,13 +52,12 @@ class HttpResponseParse {
 public:
     HttpResponseParse(HttpHeader *http_header, Buffer *buf);
     ParseState Parse();
+    ParseState ParseStatusLine();
+    ParseState ParseHeader();
 //    void SetBuffer(Buffer *buf) {
 //        buffer_ = buf;
 //    }
 private:
-    ParseState ParseStatusLine();
-
-    ParseState ParseHeader();
 
     void ParseHeaders();
 

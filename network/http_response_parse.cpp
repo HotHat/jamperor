@@ -5,7 +5,6 @@
 #include "http_response_parse.h"
 
 Network::ParseState Network::HttpResponseParse::ParseStatusLine() {
-
     for (pos_ = buffer_->Begin(); pos_ < buffer_->End(); ++pos_) {
         byte_t ch = *pos_;
 
@@ -84,7 +83,8 @@ Network::ParseState Network::HttpResponseParse::ParseStatusLine() {
                 continue;
             } else if(ch == '\n') {
                 reason_phrase_ = ss.str();
-                return ParseState::kOk;
+                ss.str("");
+                goto _done;
             } else {
                 ss << ch;
             }
@@ -92,7 +92,8 @@ Network::ParseState Network::HttpResponseParse::ParseStatusLine() {
         } else if (status_line_state_ == StatusLineState::kAlmostDone) {
             if (ch == '\n') {
                 reason_phrase_ = ss.str();
-                return ParseState::kOk;
+                ss.str("");
+                goto _done;
             }
         }
 
@@ -100,6 +101,10 @@ Network::ParseState Network::HttpResponseParse::ParseStatusLine() {
     }
 
     return ParseState::kAgain;
+
+_done:
+    ++pos_;
+    return ParseState::kOk;
 }
 
 Network::ParseState Network::HttpResponseParse::Parse() {
@@ -124,18 +129,19 @@ Network::ParseState Network::HttpResponseParse::ParseHeader() {
             "\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0";
 
     byte_t c;
+    std::string name, value;
 
     for (; pos_ < buffer_->End(); pos_++) {
         byte_t ch = *pos_;
 
         switch (header_state_) {
             // first chart
-            case HeaderState::kStart:
+            case HeaderState::kStart: {
                 header_name_start = pos_;
 
                 if (ch == '\r') {
                     header_end = pos_;
-                    header_state_ = HeaderState::kAlmostDone;
+                    header_state_ = HeaderState::kHeaderAlmostDone;
                 } else if (ch == '\n') {
                     header_end = pos_;
                     goto _header_done;
@@ -143,92 +149,134 @@ Network::ParseState Network::HttpResponseParse::ParseHeader() {
                     header_state_ = HeaderState::kName;
                     c = low_case[ch];
 
-                    if (c) { break;}
-                    // default support _, nginx should config on
+                    if (c) { break; }
+                        // default support _, nginx should config on
                     else if (ch == '_') { break; }
                     else if (ch == '\0') { return ParseState::kInvalidHeader; }
 
                     is_valid_header_ = false;
                     break;
                 }
-                break;
+            } break;
             // header name
-            case HeaderState::kName:
+            case HeaderState::kName: {
                 c = low_case[ch];
 
                 if (c) { break; }
-                // default support _, nginx should config on
-                else if (ch == '_') { break;}
-                else if (ch == ':') { header_name_end = pos_; header_state_ = HeaderState::kSpaceBeforeValue; }
+                    // default support _, nginx should config on
+                else if (ch == '_') { break; }
+                else if (ch == ':') {
+                    header_name_end = pos_;
+                    header_state_ = HeaderState::kSpaceBeforeValue;
+                    break;
+                }
                 else if (ch == '\r') {
                     header_name_end = header_start = header_end = pos_;
-                    header_state_ = HeaderState::kAlmostDone; break; }
-                else if (ch == '\n') {
+                    header_state_ = HeaderState::kAlmostDone;
+                    break;
+                } else if (ch == '\n') {
                     header_name_end = header_start = header_end = pos_;
-                    goto _done; }
-                else if (ch == '\0') { return ParseState::kInvalidHeader; }
+                    goto _done;
+                } else if (ch == '\0') { return ParseState::kInvalidHeader; }
 
                 is_valid_header_ = false;
-                break;
+            } break;
 
             // space* before header value
-            case HeaderState::kSpaceBeforeValue:
+            case HeaderState::kSpaceBeforeValue: {
                 if (ch == ' ') { break; }
-                else if (ch == '\r') { header_start = header_end = pos_; header_state_ = HeaderState::kAlmostDone; }
-                else if (ch == '\n') { header_start = header_end = pos_; goto _header_done; }
-                else if (ch == '\0') { header_end = pos_; return ParseState::kInvalidHeader; }
-                break;
+                else if (ch == '\r') {
+                    header_start = header_end = pos_;
+                    header_state_ = HeaderState::kAlmostDone;
+                }
+                else if (ch == '\n') {
+                    header_start = header_end = pos_;
+                    goto _header_done;
+                }
+                else if (ch == '\0') {
+                    header_end = pos_;
+                    return ParseState::kInvalidHeader;
+                } else {
+                    header_start = pos_;
+                    header_state_ = HeaderState::kValue;
+                }
+            } break;
 
             // header value
-            case HeaderState::kValue:
-                if (ch == ' ') { header_end = pos_; header_state_ = HeaderState::kSpaceAfterValue; }
-                else if (ch == '\r') { header_end = pos_; header_state_ = HeaderState::kAlmostDone; }
-                else if (ch == '\n') { header_end = pos_; goto _header_done; }
-                else if (ch == '\0') { header_end = pos_; return ParseState::kInvalidHeader; }
-                break;
+            case HeaderState::kValue: {
+                if (ch == ' ') {
+                    header_end = pos_;
+                    header_state_ = HeaderState::kSpaceAfterValue;
+                }
+                else if (ch == '\r') {
+                    header_end = pos_;
+                    header_state_ = HeaderState::kAlmostDone;
+                }
+                else if (ch == '\n') {
+                    header_end = pos_;
+                    goto _header_done;
+                }
+                else if (ch == '\0') {
+                    header_end = pos_;
+                    return ParseState::kInvalidHeader;
+                }
+            } break;
 
             // space* before end of header line
-            case HeaderState::kSpaceAfterValue:
+            case HeaderState::kSpaceAfterValue: {
                 if (ch == ' ') { break; }
                 else if (ch == '\r') { header_state_ = HeaderState::kAlmostDone; }
-                else if (ch == '\n') { goto _header_done;}
-                else if (ch == '\0') { header_end = pos_; return ParseState::kInvalidHeader;}
+                else if (ch == '\n') { goto _header_done; }
+                else if (ch == '\0') {
+                    header_end = pos_;
+                    return ParseState::kInvalidHeader;
+                }
                 else { header_state_ = HeaderState::kValue; }
-                break;
+            } break;
 
             // ignore header line
-            case HeaderState::kIgnoreLine:
+            case HeaderState::kIgnoreLine: {
                 if (ch == '\n') { header_state_ = HeaderState::kStart; }
-                break;
+            } break;
             // end of header line
-            case HeaderState::kAlmostDone:
+            case HeaderState::kAlmostDone: {
                 if (ch == '\n') {
-                    header_state_ = HeaderState::kHeaderAlmostDone;
+                    goto _done;
                 } else if (ch == '\r') {
                     break;
                 } else {
                     return ParseState::kInvalidHeader;
                 }
-                break;
+            } break;
 
             // end of header
-            case HeaderState::kHeaderAlmostDone:
+            case HeaderState::kHeaderAlmostDone: {
                 if (ch == '\n') {
                     goto _header_done;
                 } else {
                     return ParseState::kInvalidHeader;
                 }
+            } break;
         }
-        
     }
-    
-_done:
-    for (auto i = header_name_start; i <= header_name_end; ++i) { ss << *i; }
-    std::string name = ss.str();
 
-    for (auto i = header_start; i <= header_end; ++i) { ss << *i; }
-    std::string value = ss.str();
-    http_header_->headers.insert(name, value);
+    return ParseState::kAgain;
+
+_done:
+    // init
+    is_valid_header_ = true;
+    for (auto i = header_name_start; i < header_name_end; ++i) { ss << *i; }
+    name = ss.str();
+    ss.str("");
+
+    for (auto i = header_start; i < header_end; ++i) { ss << *i; }
+    value = ss.str();
+    ss.str("");
+    http_header_->headers[name] = value;
+
+    ++pos_;
+    header_state_ = HeaderState::kStart;
+    return ParseState::kOk;
 
 _header_done:
     ++pos_;
@@ -249,7 +297,7 @@ _header_done:
 // }
 
 
-Network::HttpResponseParse::HttpResponseParse(const Network::HttpHeader *http_header, const Network::Buffer *buffer) {
+Network::HttpResponseParse::HttpResponseParse(Network::HttpHeader *http_header, Network::Buffer *buffer) {
     http_header_ = http_header;
-    buffer_ = buffer
+    buffer_ = buffer;
 }
