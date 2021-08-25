@@ -36,6 +36,7 @@ Network::ParseState Network::HttpResponseParse::ParseStatusLine() {
         } else if (status_line_state_ == StatusLineState::kHttpMajor) {
             if (ch >= '0' && ch <= '9') {
                 status_line_state_ = StatusLineState::kHttpDot;
+                http_header_->major = ch - '0';
                 continue;
             }
         } else if (status_line_state_ == StatusLineState::kHttpDot) {
@@ -47,6 +48,7 @@ Network::ParseState Network::HttpResponseParse::ParseStatusLine() {
         else if (status_line_state_ == StatusLineState::kHttpMinor) {
             if (ch >= '0' && ch <= '9') {
                 status_line_state_ = StatusLineState::kSpaceBeforeCode;
+                http_header_->minor = ch - '0';
                 continue;
             }
         } else if (status_line_state_ == StatusLineState::kSpaceBeforeCode) {
@@ -69,6 +71,7 @@ Network::ParseState Network::HttpResponseParse::ParseStatusLine() {
         } else if (status_line_state_ == StatusLineState::kStatusCode_3) {
             if (ch >= '0' && ch <= '9') {
                 http_code_ = http_code_ * 10 + (ch - '0');
+                http_header_->status_code = http_code_;
                 status_line_state_ = StatusLineState::kSpaceBeforeReasonPhrase;
                 continue;
             }
@@ -83,6 +86,7 @@ Network::ParseState Network::HttpResponseParse::ParseStatusLine() {
                 continue;
             } else if(ch == '\n') {
                 reason_phrase_ = ss.str();
+                http_header_->reason_phrase = reason_phrase_;
                 ss.str("");
                 goto _done;
             } else {
@@ -92,6 +96,7 @@ Network::ParseState Network::HttpResponseParse::ParseStatusLine() {
         } else if (status_line_state_ == StatusLineState::kAlmostDone) {
             if (ch == '\n') {
                 reason_phrase_ = ss.str();
+                http_header_->reason_phrase = reason_phrase_;
                 ss.str("");
                 goto _done;
             }
@@ -263,19 +268,22 @@ Network::ParseState Network::HttpResponseParse::ParseHeader() {
     return ParseState::kAgain;
 
 _done:
-    // init
-    is_valid_header_ = true;
-    for (auto i = header_name_start; i < header_name_end; ++i) { ss << *i; }
-    name = ss.str();
-    ss.str("");
-
-    for (auto i = header_start; i < header_end; ++i) { ss << *i; }
-    value = ss.str();
-    ss.str("");
-    http_header_->headers[name] = value;
-
     ++pos_;
     header_state_ = HeaderState::kStart;
+    // invalid header
+    if (!is_valid_header_) {
+        is_valid_header_ = true;
+    } else {
+        for (auto i = header_name_start; i < header_name_end; ++i) { ss << *i; }
+        name = ss.str();
+        ss.str("");
+
+        for (auto i = header_start; i < header_end; ++i) { ss << *i; }
+        value = ss.str();
+        ss.str("");
+        http_header_->headers[name] = value;
+    }
+
     return ParseState::kOk;
 
 _header_done:

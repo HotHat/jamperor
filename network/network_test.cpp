@@ -15,7 +15,7 @@ int main(int argc, char* argv[])
 
     Network::Buffer buffer;
     std::string s = "HTTP/1.1 200 OK\r\n"
-                    "Server: nginx\r\n"
+                    "Test.#: nginx\r\n"
                     "Pragma: no-cache\r\n\r\n";
     buffer.Add(s.c_str(), s.size());
 
