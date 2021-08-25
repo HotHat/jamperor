@@ -309,3 +309,8 @@ Network::HttpResponseParse::HttpResponseParse(Network::HttpHeader *http_header, 
     http_header_ = http_header;
     buffer_ = buffer;
 }
+
+Network::ParseState Network::HttpResponseParse::ParseChunk() {
+
+    return Network::ParseState::kOk;
+}

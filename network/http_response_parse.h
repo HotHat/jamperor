@@ -48,12 +48,29 @@ enum class HeaderState {
     kHeaderAlmostDone
 };
 
+enum class ChunkState {
+    kStart,
+    kSize,
+    kExtension,
+    kExtensionAmostDone,
+    kData,
+    kAfterData,
+    kAfterDataAlmostDone,
+    kLastExtension,
+    kLastExtensionAlmostDone,
+    kTrailer,
+    kTrailerAmostDone,
+    kTrailerHeader,
+    kTrailerHeaderAmostDone
+};
+
 class HttpResponseParse {
 public:
     HttpResponseParse(HttpHeader *http_header, Buffer *buf);
     ParseState Parse();
     ParseState ParseStatusLine();
     ParseState ParseHeader();
+    ParseState ParseChunk();
 //    void SetBuffer(Buffer *buf) {
 //        buffer_ = buf;
 //    }
